@@ -1,5 +1,7 @@
 # rogue-server
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/rogue-server)
+
 The MVP currently includes three enemy types in addition to the core combat loop.
 
 最小構成のRogue風ターン制ダンジョンサーバーです。ゲーム状態はサーバーが管理し、クライアントはJSON over WebSocketで入力とスナップショットを交換します。現在は地下1階・地下2階の往復と各階の状態保持、勝利アイテム、視界付き敵AI、敵種別ごとの行動速度・移動特性・Trollの再生・瀕死Batの退避、食料、満腹度、経験値、レベルアップ、武器・防具・指輪・杖装備、遠隔攻撃、毒・火炎罠、回復・力のポーション、マッピング・テレポートスクロール、消耗品スタック、終了スコアに対応しています。
