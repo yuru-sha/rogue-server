@@ -1,3 +1,7 @@
 /target
-/.agents
-/.codex
+
+# Machine-local agent links; keep only project-owned skills versioned.
+.agents/agent-capabilities/
+.codex/agents/
+.agents/skills/*
+.codex/config.toml
