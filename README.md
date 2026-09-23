@@ -1,39 +1,41 @@
 # rogue-server
 
+[English](README.md) | [日本語](README.ja.md)
+
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/yuru-sha/rogue-server)
 
 The MVP currently includes three enemy types in addition to the core combat loop.
 
-最小構成のRogue風ターン制ダンジョンサーバーです。ゲーム状態はサーバーが管理し、クライアントはJSON over WebSocketで入力とスナップショットを交換します。現在は地下1階・地下2階の往復と各階の状態保持、勝利アイテム、視界付き敵AI、敵種別ごとの行動速度・移動特性・Trollの再生・瀕死Batの退避、食料、満腹度、経験値、レベルアップ、武器・防具・指輪・杖装備、遠隔攻撃、毒・火炎罠、回復・力のポーション、マッピング・テレポートスクロール、消耗品スタック、終了スコアに対応しています。
+A minimal Rogue-like, turn-based dungeon server. The server owns the game state, while clients exchange commands and snapshots over JSON via WebSocket. It currently supports round trips between floors 1 and 2 with per-floor state, a victory item, line-of-sight enemy AI, enemy-specific action speeds and movement traits, Troll regeneration, retreating wounded Bats, food, hunger, experience, leveling, weapon, armor, ring, and staff equipment, ranged attacks, poison and fire traps, healing and strength potions, mapping and teleport scrolls, consumable item stacking, and end-game scoring.
 
-## 起動
+## Running
 
 ```sh
 cargo run
 curl http://127.0.0.1:8080/health
 ```
 
-別のターミナルでASCIIクライアントを起動します。
+In another terminal, start the ASCII client:
 
 ```sh
 cargo run --bin rogue-cli
 ```
 
-操作一覧は次で確認できます。
+See the available controls with:
 
 ```sh
 cargo run --bin rogue-cli -- --help
 ```
 
-接続先を変更する場合は `ROGUE_WS` を指定します。
+Set `ROGUE_WS` to change the connection target:
 
 ```sh
 ROGUE_WS=ws://127.0.0.1:9000/ws cargo run --bin rogue-cli
 ```
 
-listen先は`ROGUE_LISTEN`で変更できます。
+Set `ROGUE_LISTEN` to change the listen address.
 
-## コマンド例
+## Command examples
 
 ```json
 {"version":1,"request_id":"1","command":{"type":"move","dx":1,"dy":0}}
@@ -48,13 +50,17 @@ listen先は`ROGUE_LISTEN`で変更できます。
 {"version":1,"request_id":"10","command":{"type":"quit"}}
 ```
 
-同じseedをWebSocket URLの`seed`クエリへ渡すと、マップと初期配置を再現できます。
+Pass a seed in the WebSocket URL's `seed` query parameter to reproduce the map and initial placements.
 
-インベントリ検査は `inventory`、所持品を1個落とす操作は `drop` として利用できます。
-`drop` には `food`、`potion`、`strength_potion`、`scroll`、`teleport_scroll`、`amulet`、`weapon`、`armor`、`ring`、`staff` のいずれかを指定します。
-識別は `identify` に `weapon`、`armor`、`ring`、`staff` のいずれかを指定します。テレポートスクロールは `teleport` で使用します。
-同一種類かつ同一メタデータのアイテムは1スロットにまとまり、使用またはドロップで1個ずつ減ります。ボーナスや識別・呪い状態が異なるアイテムは分離されます。
+Use `inventory` to inspect your inventory and `drop` to drop one carried item.
+`drop` accepts one of `food`, `potion`, `strength_potion`, `scroll`, `teleport_scroll`, `amulet`, `weapon`, `armor`, `ring`, or `staff`.
+Use `identify` with `weapon`, `armor`, `ring`, or `staff` to identify an item. Use `teleport` to use a teleport scroll.
+Items of the same type and metadata stack in one slot. Using or dropping an item removes one at a time. Items with different bonuses or identification/curse states remain in separate slots.
 
 ```text
 ws://127.0.0.1:8080/ws?seed=42
 ```
+
+## GitHub Release
+
+See [docs/agents/release.md](docs/agents/release.md) for the release note format and creation procedure. The shared body template is [.github/release-notes-template.md](.github/release-notes-template.md), and the generated-note categories are managed in [.github/release.yml](.github/release.yml).
