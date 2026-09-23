@@ -56,6 +56,11 @@ cargo run --bin rogue-cli -- --help
 Never commit secrets, real user data, local databases, build output, or
 machine-specific configuration.
 
+## Commit Messages
+
+- Follow the commit-message policy in `CONTRIBUTING.md`.
+- Do not create commits unless the user explicitly requests it.
+
 ## Git
 
 Keep changes focused and do not create commits, push, or open pull requests
