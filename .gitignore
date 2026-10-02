@@ -2,6 +2,8 @@
 /target/
 
 # Local environment and secrets
+.agents/skills/
+.agents/
 .env
 .env.*
 !.env.example
@@ -11,6 +13,9 @@
 *.log
 tmp/
 temp/
+
+# Local verification scratch
+artifacts/verification/
 
 # OS / editor files
 .DS_Store
