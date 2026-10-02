@@ -61,6 +61,12 @@ Items of the same type and metadata stack in one slot. Using or dropping an item
 ws://127.0.0.1:8080/ws?seed=42
 ```
 
-## GitHub Release
 
-See [docs/agents/release.md](docs/agents/release.md) for the release note format and creation procedure. The shared body template is [.github/release-notes-template.md](.github/release-notes-template.md), and the generated-note categories are managed in [.github/release.yml](.github/release.yml).
+## Documentation
+
+- [Specification](docs/SPEC.md)
+- [MVP acceptance contract](docs/MVP.md)
+
+## GitHub workflow
+
+Shared Issue Forms and the default Pull Request template are inherited from `yuru-sha/.github`. Release-note categories are configured in `.github/release.yml`, and shared labels (including `orca:*`) are synchronized from `yuru-sha/project-template`.
