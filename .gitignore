@@ -2,8 +2,6 @@
 /target/
 
 # Local environment and secrets
-.agents/skills/
-.agents/
 .env
 .env.*
 !.env.example
