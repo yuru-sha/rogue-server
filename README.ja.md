@@ -61,6 +61,12 @@ listen先は`ROGUE_LISTEN`で変更できます。
 ws://127.0.0.1:8080/ws?seed=42
 ```
 
-## GitHub Release
 
-See [docs/agents/release.md](docs/agents/release.md) for the release note format and creation procedure. The shared body template is [.github/release-notes-template.md](.github/release-notes-template.md), and the generated-note categories are managed in [.github/release.yml](.github/release.yml).
+## ドキュメント
+
+- [仕様](docs/SPEC.md)
+- [MVP受け入れ条件](docs/MVP.md)
+
+## GitHub運用
+
+Issue Form と既定の Pull Request テンプレートは `yuru-sha/.github` の共通設定を利用します。Release Notes のカテゴリは `.github/release.yml` で管理し、`orca:*` を含む共通ラベルは `yuru-sha/project-template` から同期します。
