@@ -17,12 +17,17 @@ render the state; the server owns rules, turns, and random outcomes.
 
 ## Change workflow
 
-1. Read `SPEC.md` and `MVP.md` before changing behavior.
+1. Read `docs/SPEC.md` and `docs/MVP.md` before changing behavior.
 2. Add a focused test for non-trivial behavior before implementing it.
 3. Make the smallest implementation that satisfies the test and specification.
 4. Refactor only after the tests pass.
-5. Update `SPEC.md`, `MVP.md`, or `README.md` when the public behavior or
+5. Update `docs/SPEC.md`, `docs/MVP.md`, or `README.md` when the public behavior or
    supported command changes.
+
+## Branch And Pull Request Workflow
+
+- Do not edit, commit, or push directly to `main`. Make changes on a feature branch and merge them through a pull request.
+- Direct work on `main` is allowed only when the user explicitly authorizes it.
 
 ## Protocol invariants
 
@@ -56,12 +61,14 @@ cargo run --bin rogue-cli -- --help
 Never commit secrets, real user data, local databases, build output, or
 machine-specific configuration.
 
+## GitHub workflow
+
+- GitHub Issues are the canonical work tracker.
+- Shared Bug / Feature / Question forms and the default Pull Request template are inherited from `yuru-sha/.github`.
+- Shared non-default labels, including `orca:*`, are synchronized from `yuru-sha/project-template`.
+- Use `orca:*` labels only for ORCA execution state; do not treat them as release categories.
+
 ## Commit Messages
 
 - Follow the commit-message policy in `CONTRIBUTING.md`.
-- Do not create commits unless the user explicitly requests it.
-
-## Git
-
-Keep changes focused and do not create commits, push, or open pull requests
-unless the user explicitly requests those operations.
+- Keep changes focused and preserve unrelated work.

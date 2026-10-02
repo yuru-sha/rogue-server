@@ -55,7 +55,7 @@ smaller than a full classic-Rogue remake.
 ## Explicitly out of scope
 
 - Persistent death records, saves, accounts, rankings, and mobile UI remain
-  outside this server MVP; SPEC.md explicitly excludes them.
+  outside this server MVP; docs/SPEC.md explicitly excludes them.
 
 ## Review checklist
 
