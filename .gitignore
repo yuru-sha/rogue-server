@@ -12,6 +12,9 @@
 tmp/
 temp/
 
+# Local verification scratch
+artifacts/verification/
+
 # OS / editor files
 .DS_Store
 Thumbs.db
