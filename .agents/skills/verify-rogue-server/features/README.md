@@ -7,12 +7,12 @@ This directory tracks user-visible rogue-server behavior. Read the feature file 
 - Follow `../SKILL.md` Launch and Doctor using a unique run ID and unused port.
 - Drive only the server started by this verification run. Each WebSocket connection owns one game.
 - Use `/ws?seed=42` for repeatable initial placement. The app has no auth or persisted game data.
-- Keep proof in `artifacts/verification/<RUN_ID>/`; cleanup removes only `/tmp/rogue-verify-<RUN_ID>`.
+- Keep proof in `artifacts/verify-rogue-server/<RUN_ID>/`; cleanup removes only `/tmp/rogue-verify-<RUN_ID>`.
 
 ## Driving conventions
 
 - Public routes: `GET /health` and `GET /ws`; messages are versioned JSON.
-- Use `node skills/verify-rogue-server/scripts/drive-session.mjs <ws-url> <evidence-json>` for scripted protocol checks.
+- Use `node .agents/skills/verify-rogue-server/scripts/drive-session.mjs <ws-url> <evidence-json>` for scripted protocol checks.
 - Use a real interactive terminal for CLI rendering and keyboard behavior.
 - Record the action and response, including turn and ended state. A WebSocket proof does not verify CLI rendering.
 

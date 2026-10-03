@@ -21,7 +21,7 @@ Preconditions:
 
 - **Inspect inventory.** Run the driver command in `../SKILL.md`. It sends the public `inventory` command and checks that the response message begins `Inventory:` and the turn remains 0.
 - **Consume a turn.** The driver sends `wait` and checks an active snapshot at turn 1.
-- **Quit.** The driver sends `quit` and checks `ended: true`, `result: "quit"`. Inspect all recorded command/response entries in `artifacts/verification/$RUN_ID/session.json`.
+- **Quit.** The driver sends `quit` and checks `ended: true`, `result: "quit"`. Inspect all recorded command/response entries in `artifacts/verify-rogue-server/$RUN_ID/session.json`.
 
 ## Gotchas
 
