@@ -54,9 +54,9 @@ Node.js 24 or newer provides the built-in WebSocket API; no npm packages are nee
 
 ```sh
 export RUN_ID=verify-20261002 PORT=18083
-node skills/verify-rogue-server/scripts/drive-session.mjs \
+node .agents/skills/verify-rogue-server/scripts/drive-session.mjs \
   "ws://127.0.0.1:$PORT/ws?seed=42" \
-  "artifacts/verification/$RUN_ID/session.json"
+  "artifacts/verify-rogue-server/$RUN_ID/session.json"
 ```
 
 The script records the initial snapshot, sends `inventory` and checks turn 0, sends `wait` and checks turn 1, then sends `quit` and checks the ended response. It exits nonzero on a failed assertion and writes the complete command/response sequence, map, and player state to the evidence file.
@@ -65,7 +65,7 @@ To verify the terminal-specific client path, build with `cargo build --bin rogue
 
 ## Evidence
 
-Keep proof in `artifacts/verification/<RUN_ID>/`, outside the temporary directory removed by Cleanup. Capture the action and returned state, not just the final screen. The scripted session artifact contains both commands and responses; include run ID, URL/seed, command exit status, and relevant server log output in the handoff. Capture the health response and CLI help output when those paths change.
+Keep proof in `artifacts/verify-rogue-server/<RUN_ID>/`, outside the temporary directory removed by Cleanup. Capture the action and returned state, not just the final screen. The scripted session artifact contains both commands and responses; include run ID, URL/seed, command exit status, and relevant server log output in the handoff. Capture the health response and CLI help output when those paths change.
 
 Use the real `/health`, `/ws`, or CLI path. Do not substitute direct library calls, internal state changes, tests, or test-only endpoints. Verify observable transitions: inventory leaves the turn unchanged, wait increments it, and quit ends that connection. No external services are involved, so no mocks are needed.
 
@@ -82,8 +82,8 @@ RUN_ID=verify-20261002 sh -eu -c '
 '
 ```
 
-If the run used a supervisor, prefer its `kill` action over `kill "$pid"` so the supervisor records the stop. Keep `artifacts/verification/<RUN_ID>/` after cleanup. If the PID file is missing or the recorded PID no longer owns the port, stop and inspect state instead of killing by process name.
+If the run used a supervisor, prefer its `kill` action over `kill "$pid"` so the supervisor records the stop. Keep `artifacts/verify-rogue-server/<RUN_ID>/` after cleanup. If the PID file is missing or the recorded PID no longer owns the port, stop and inspect state instead of killing by process name.
 
 ## Helpers
 
-`skills/verify-rogue-server/scripts/drive-session.mjs` is executable and uses Node's built-in WebSocket client. Its invocation is the Drive command above; run `node --check skills/verify-rogue-server/scripts/drive-session.mjs` to check JavaScript syntax.
+`.agents/skills/verify-rogue-server/scripts/drive-session.mjs` is executable and uses Node's built-in WebSocket client. Its invocation is the Drive command above; run `node --check .agents/skills/verify-rogue-server/scripts/drive-session.mjs` to check JavaScript syntax.

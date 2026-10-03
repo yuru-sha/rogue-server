@@ -12,8 +12,8 @@
 tmp/
 temp/
 
-# Local verification scratch
-artifacts/verification/
+# Local verification evidence
+artifacts/
 
 # OS / editor files
 .DS_Store

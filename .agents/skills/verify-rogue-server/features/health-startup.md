@@ -19,7 +19,7 @@ Preconditions:
 - Follow Launch in `../SKILL.md` with a unique run ID and unused port.
 
 - **Check readiness and ownership.** Run Doctor in `../SKILL.md`. `lsof` must show the recorded PID listening on the selected port, and curl must return exactly `ok`.
-- **Capture proof.** Save the command, body, PID, port, and relevant server log at `artifacts/verification/<RUN_ID>/health.txt`.
+- **Capture proof.** Save the command, body, PID, port, and relevant server log at `artifacts/verify-rogue-server/<RUN_ID>/health.txt`.
 
 ## Gotchas
 
