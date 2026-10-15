@@ -23,10 +23,9 @@ Use each artifact to communicate a different kind of intent:
 
 - Code should explain **How** the behavior is implemented.
 - Test code should explain **What** behavior is expected.
-- Commit messages should explain **Why** the change was made.
-- Code comments should explain **Why not**: document non-obvious constraints, rejected alternatives, trade-offs, or reasons the seemingly simpler approach is incorrect.
+- Code comments should explain **Why not**: document non-obvious constraints, rejected alternatives, trade-offs, or reasons a seemingly simpler approach is incorrect, as well as intent that code alone cannot convey.
 
-Do not use comments to restate what the code already makes clear.
+Avoid comments that merely restate what the code already makes clear.
 
 ## Branch And Pull Request Workflow
 

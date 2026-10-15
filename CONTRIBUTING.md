@@ -60,3 +60,9 @@ Use these types as the default vocabulary:
 Use a scope when it adds useful context, for example `fix(forecast): handle missing observations`.
 
 Mark a breaking change with `!` after the type or scope, or with a `BREAKING CHANGE:` footer.
+
+## Repository-specific guidelines
+
+### Commit messages
+
+Commit logs should explain **Why** the change was necessary.
