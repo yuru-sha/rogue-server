@@ -17,15 +17,12 @@
 - `docs/`: `SPEC.md` defines behavior/protocol; `MVP.md` defines acceptance criteria and exclusions.
 - `.github/`: repository workflow and release configuration.
 
-## Code and comment guidance
+## Code, Tests, Commits, and Comments
 
-Use each artifact to communicate a different kind of intent:
-
-- Code should explain **How** the behavior is implemented.
-- Test code should explain **What** behavior is expected.
-- Code comments should explain **Why not**: document non-obvious constraints, rejected alternatives, trade-offs, or reasons a seemingly simpler approach is incorrect, as well as intent that code alone cannot convey.
-
-Avoid comments that merely restate what the code already makes clear.
+- Code should make how the behavior is implemented clear.
+- Tests should make what behavior is expected clear.
+- Commit messages should explain why the change is needed.
+- Comments should explain why not an apparently reasonable alternative was chosen, including relevant constraints or non-obvious intent. Do not use comments to paraphrase the code's behavior.
 
 ## Branch And Pull Request Workflow
 
