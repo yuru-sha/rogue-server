@@ -1,0 +1,66 @@
+name: Rust verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Run tests
+        run: cargo test --all-targets
+      - name: Build binaries
+        run: cargo build --bins
+      - name: Verify HTTP and WebSocket against running server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/verify-rogue-server/ci
+          export ROGUE_LISTEN=127.0.0.1:18083
+          target/debug/rogue-server > artifacts/verify-rogue-server/ci/server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+          healthy=0
+          for attempt in {1..50}; do
+            if [[ "$(curl --silent --max-time 1 http://127.0.0.1:18083/health || true)" == "ok" ]]; then
+              healthy=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 0.2
+          done
+          if [[ "$healthy" != 1 ]]; then
+            cat artifacts/verify-rogue-server/ci/server.log
+            exit 1
+          fi
+          node --check .agents/skills/verify-rogue-server/scripts/drive-session.mjs
+          node .agents/skills/verify-rogue-server/scripts/drive-session.mjs \
+            ws://127.0.0.1:18083/ws?seed=42 \
+            artifacts/verify-rogue-server/ci/session.json
+          target/debug/rogue-cli --help > artifacts/verify-rogue-server/ci/cli-help.txt
+      - name: Upload smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rogue-server-verification
+          path: artifacts/verify-rogue-server/ci/
+          if-no-files-found: warn

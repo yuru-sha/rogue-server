@@ -25,8 +25,8 @@ Then start the server via the named service tool:
 The service reports `ready` once the port answers. The supervisor records the listener PID; reference it as `$SERVICE_PID` (the runtime reports it as the `pid` in the ready message). Capture it for cleanup:
 
 ```sh
-echo "$SERVICE_PID" > "/tmp/rogue-verify-$RUN_ID/server.pid"
 mkdir -p "/tmp/rogue-verify-$RUN_ID"
+echo "$SERVICE_PID" > "/tmp/rogue-verify-$RUN_ID/server.pid"
 test "$(curl --fail --silent "http://127.0.0.1:$PORT/health")" = ok
 ```
 
