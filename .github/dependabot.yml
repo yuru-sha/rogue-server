@@ -7,6 +7,11 @@ updates:
       day: wednesday
       time: "09:00"
       timezone: Asia/Tokyo
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
 
   - package-ecosystem: github-actions
@@ -16,4 +21,9 @@ updates:
       day: wednesday
       time: "09:00"
       timezone: Asia/Tokyo
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
