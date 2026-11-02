@@ -24,7 +24,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
         let key = input.trim().chars().next().unwrap_or('.');
-        let Some(body) = command_for_key(key) else { continue; };
+        let Some(body) = command_for_key(key) else {
+            continue;
+        };
         socket.send(Message::Text(body.to_string().into())).await?;
     }
     Ok(())
@@ -126,9 +128,13 @@ fn command_for_key(key: char) -> Option<serde_json::Value> {
         _ => None,
     };
     let Some((kind, dx, dy)) = command.or_else(|| {
-        if drop_item.is_some() { Some(("drop", 0, 0)) }
-        else if identify_item.is_some() { Some(("identify", 0, 0)) }
-        else { None }
+        if drop_item.is_some() {
+            Some(("drop", 0, 0))
+        } else if identify_item.is_some() {
+            Some(("identify", 0, 0))
+        } else {
+            None
+        }
     }) else {
         return None;
     };
@@ -151,7 +157,18 @@ mod tests {
 
     #[test]
     fn drop_shortcuts_send_drop_requests() {
-        for (key, item) in [('1', "food"), ('2', "potion"), ('3', "scroll"), ('4', "amulet"), ('5', "weapon"), ('6', "armor"), ('7', "strength_potion"), ('8', "teleport_scroll"), ('9', "ring"), ('0', "staff")] {
+        for (key, item) in [
+            ('1', "food"),
+            ('2', "potion"),
+            ('3', "scroll"),
+            ('4', "amulet"),
+            ('5', "weapon"),
+            ('6', "armor"),
+            ('7', "strength_potion"),
+            ('8', "teleport_scroll"),
+            ('9', "ring"),
+            ('0', "staff"),
+        ] {
             let request = command_for_key(key).unwrap();
             assert_eq!(request["command"]["type"], "drop");
             assert_eq!(request["command"]["item"], item);
@@ -160,7 +177,12 @@ mod tests {
 
     #[test]
     fn identify_shortcuts_send_identify_requests() {
-        for (key, item) in [('I', "weapon"), ('A', "armor"), ('G', "ring"), ('D', "staff")] {
+        for (key, item) in [
+            ('I', "weapon"),
+            ('A', "armor"),
+            ('G', "ring"),
+            ('D', "staff"),
+        ] {
             let request = command_for_key(key).unwrap();
             assert_eq!(request["command"]["type"], "identify");
             assert_eq!(request["command"]["item"], item);
