@@ -127,7 +127,7 @@ fn command_for_key(key: char) -> Option<serde_json::Value> {
         'q' => Some(("quit", 0, 0)),
         _ => None,
     };
-    let Some((kind, dx, dy)) = command.or_else(|| {
+    let (kind, dx, dy) = command.or_else(|| {
         if drop_item.is_some() {
             Some(("drop", 0, 0))
         } else if identify_item.is_some() {
@@ -135,9 +135,7 @@ fn command_for_key(key: char) -> Option<serde_json::Value> {
         } else {
             None
         }
-    }) else {
-        return None;
-    };
+    })?;
     let body = if let Some(item) = identify_item {
         serde_json::json!({"version":1,"request_id":"cli","command":{"type":"identify","item":item}})
     } else if let Some(item) = drop_item {
