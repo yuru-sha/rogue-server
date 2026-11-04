@@ -59,7 +59,7 @@ jobs:
           target/debug/rogue-cli --help > artifacts/verify-rogue-server/ci/cli-help.txt
       - name: Upload smoke evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rogue-server-verification
           path: artifacts/verify-rogue-server/ci/
