@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/gorilla/websocket"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,6 +12,15 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
 const defaultMaxSessions = 64
@@ -38,6 +46,18 @@ var upgrader = websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, nil)))
+	shutdownTelemetry, err := configureTelemetry(context.Background())
+	if err != nil {
+		slog.Error("telemetry_init_failed", "operation", "telemetry_init", "outcome", "failed", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(ctx); err != nil {
+			slog.Error("telemetry_shutdown_failed", "operation", "telemetry_shutdown", "outcome", "failed", "error", err)
+		}
+	}()
 	configureSessionLimits()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
@@ -51,7 +71,7 @@ func main() {
 		slog.Error("server_start_failed", "operation", "server_start", "outcome", "failed", "address", address, "error", err)
 		os.Exit(1)
 	}
-	server := &http.Server{Handler: mux}
+	server := &http.Server{Handler: otelhttp.NewHandler(mux, "rogue-server")}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	serveErr := make(chan error, 1)
@@ -99,6 +119,27 @@ func configureSessionLimits() {
 			slog.Warn("invalid_idle_timeout", "value", raw)
 		}
 	}
+}
+func configureTelemetry(ctx context.Context) (func(context.Context) error, error) {
+	exporterConfigured := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != "" ||
+		os.Getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT") != ""
+	if !exporterConfigured || os.Getenv("OTEL_TRACES_EXPORTER") == "none" {
+		return func(context.Context) error { return nil }, nil
+	}
+	exporter, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+	provider := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(resource.NewWithAttributes("", attribute.String("service.name", "rogue-server"))),
+	)
+	otel.SetTracerProvider(provider)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
+	return provider.Shutdown, nil
 }
 
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
