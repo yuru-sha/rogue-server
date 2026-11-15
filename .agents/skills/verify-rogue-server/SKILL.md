@@ -12,14 +12,15 @@ The primary user path is the server-authoritative game at `/ws`; `rogue-cli` is 
 Launch uses a named supervised service so a single Bash call owns the lifecycle and the listener PID is the recorded ownership token. From the repository root, choose a unique run ID and unused port:
 
 ```sh
-RUN_ID=verify-20261002 PORT=18083
-cargo build --bin rogue-server
+RUN_ID=verify-20261109 PORT=18083
+mkdir -p "/tmp/rogue-verify-$RUN_ID" "artifacts/verify-rogue-server/$RUN_ID"
+go build -o "/tmp/rogue-verify-$RUN_ID/rogue-server" ./cmd/rogue-server
 ```
 
 Then start the server via the named service tool:
 
 ```json
-{"command":"env ROGUE_LISTEN=127.0.0.1:$PORT target/debug/rogue-server","name":"rogue-verify-$RUN_ID","ready":{"port":$PORT,"host":"127.0.0.1","timeout":30}}
+{"command":"env ROGUE_LISTEN=127.0.0.1:$PORT /tmp/rogue-verify-$RUN_ID/rogue-server","name":"rogue-verify-$RUN_ID","ready":{"port":$PORT,"host":"127.0.0.1","timeout":30}}
 ```
 
 The service reports `ready` once the port answers. The supervisor records the listener PID; reference it as `$SERVICE_PID` (the runtime reports it as the `pid` in the ready message). Capture it for cleanup:
@@ -61,7 +62,7 @@ node .agents/skills/verify-rogue-server/scripts/drive-session.mjs \
 
 The script records the initial snapshot, sends `inventory` and checks turn 0, sends `wait` and checks turn 1, then sends `quit` and checks the ended response. It exits nonzero on a failed assertion and writes the complete command/response sequence, map, and player state to the evidence file.
 
-To verify the terminal-specific client path, build with `cargo build --bin rogue-cli`, then run `ROGUE_WS="ws://127.0.0.1:$PORT/ws?seed=42" target/debug/rogue-cli` in an interactive terminal. It renders the map and accepts keyboard input; `q` quits. Capture the keypress and resulting terminal output. This is separate from the scripted WebSocket proof.
+To verify the terminal-specific client path, build with `go build -o "/tmp/rogue-verify-$RUN_ID/rogue-cli" ./cmd/rogue-cli`, then run `ROGUE_WS="ws://127.0.0.1:$PORT/ws?seed=42" "/tmp/rogue-verify-$RUN_ID/rogue-cli"` in an interactive terminal. It renders the map and accepts keyboard input; `q` quits. Capture the keypress and resulting terminal output. This is separate from the scripted WebSocket proof.
 
 ## Evidence
 

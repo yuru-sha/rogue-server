@@ -10,8 +10,8 @@
 
 ## How to get to it (user POV)
 
-- Run `cargo run --bin rogue-cli -- --help` for help.
-- Run `ROGUE_WS=ws://127.0.0.1:<port>/ws cargo run --bin rogue-cli` in a terminal.
+- Run `go run ./cmd/rogue-cli --help` for help.
+- Run `ROGUE_WS=ws://127.0.0.1:<port>/ws go run ./cmd/rogue-cli` in a terminal.
 - Enter `q` at the game prompt to quit.
 
 ## Driving it with an interactive terminal
@@ -19,10 +19,10 @@
 Preconditions:
 
 - Follow Launch and Doctor in `../SKILL.md`.
-- Build with `cargo build --bin rogue-cli`.
-- Run `ROGUE_WS="ws://127.0.0.1:$PORT/ws?seed=42" target/debug/rogue-cli` in an interactive terminal and capture its transcript.
+- Build with `go build -o "/tmp/rogue-verify-$RUN_ID/rogue-cli" ./cmd/rogue-cli`.
+- Run `ROGUE_WS="ws://127.0.0.1:$PORT/ws?seed=42" "/tmp/rogue-verify-$RUN_ID/rogue-cli"` in an interactive terminal and capture its transcript.
 
-- **Check help.** Run `cargo run --bin rogue-cli -- --help`. Exit status is 0; output names the default WebSocket URL and `ROGUE_WS` override.
+- **Check help.** Run `go run ./cmd/rogue-cli --help`. Exit status is 0; output names the default WebSocket URL and `ROGUE_WS` override.
 - **Connect and render.** Start the client command above. Capture the status display and map, including `@` at the player position.
 - **Quit.** Enter `q`; capture the keypress and resulting ended game/process exit.
 
