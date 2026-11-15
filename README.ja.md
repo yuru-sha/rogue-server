@@ -38,6 +38,8 @@ WebSocketセッション数の上限はデフォルト64、無通信タイムア
 `ROGUE_MAX_SESSIONS`には正の接続数、`ROGUE_IDLE_TIMEOUT`にはGoのduration形式
 （例: `2m`）を指定して変更できます。SIGINT/SIGTERMによる終了時には接続中の
 WebSocketセッションも閉じます。
+サーバーからのWebSocket書き込みには10秒の期限があり、読み取りを停止したクライアントは
+切断され、セッション枠が解放されます。
 
 サーバーの構造化ログはJSON形式で標準エラー出力に出力します。
 

@@ -25,6 +25,8 @@ server owns all game rules and random outcomes.
 - SIGINT and SIGTERM close active WebSocket sessions and gracefully stop HTTP.
 - WebSocket ping/pong control frames do not end a session; binary application
   frames are ignored.
+- Server WebSocket writes have a 10-second deadline; stalled readers are
+  disconnected and release their session slot.
 
 ## Turn rules
 

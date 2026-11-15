@@ -42,6 +42,8 @@ behind appropriate network access controls. WebSocket sessions are limited to
 client activity. Set `ROGUE_MAX_SESSIONS` to a positive connection limit and
 `ROGUE_IDLE_TIMEOUT` to a Go duration (for example, `2m`) to change these limits.
 The server closes active WebSocket sessions during SIGINT/SIGTERM shutdown.
+Server WebSocket writes have a 10-second deadline; clients that stop reading are
+disconnected and release their session slot.
 
 The server writes structured JSON logs to stderr.
 

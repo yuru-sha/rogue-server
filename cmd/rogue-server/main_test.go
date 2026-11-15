@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,8 +13,12 @@ import (
 )
 
 func testWebSocket(t *testing.T) (*httptest.Server, *websocket.Conn) {
+	return testWebSocketWithHandler(t, http.HandlerFunc(websocketHandler))
+}
+
+func testWebSocketWithHandler(t *testing.T, handler http.Handler) (*httptest.Server, *websocket.Conn) {
 	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(websocketHandler))
+	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	endpoint := "ws" + strings.TrimPrefix(server.URL, "http")
 	conn, response, err := websocket.DefaultDialer.Dial(endpoint, nil)
@@ -95,8 +100,12 @@ func TestWebSocketShutdownClosesActiveSession(t *testing.T) {
 }
 
 func waitForNoSessions(t *testing.T) {
+	waitForNoSessionsWithin(t, time.Second)
+}
+
+func waitForNoSessionsWithin(t *testing.T, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(timeout)
 	for len(sessionSlots) != 0 && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
@@ -122,4 +131,37 @@ func TestWebSocketDisconnectDuringResponseReleasesSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitForNoSessions(t)
+}
+
+func TestSlowWebSocketReaderCannotHoldSessionPastWriteDeadline(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		websocketHandlerWithWriteTimeout(w, r, 100*time.Millisecond)
+	})
+	_, conn := testWebSocketWithHandler(t, handler)
+	tcp, ok := conn.UnderlyingConn().(*net.TCPConn)
+	if !ok {
+		t.Fatal("WebSocket transport is not TCP")
+	}
+	if err := tcp.SetReadBuffer(1024); err != nil {
+		t.Fatal(err)
+	}
+	sendDone := make(chan error, 1)
+	go func() {
+		for range 10000 {
+			if err := conn.WriteJSON(map[string]any{"version": 1, "request_id": "wait", "command": map[string]any{"type": "wait"}}); err != nil {
+				sendDone <- err
+				return
+			}
+		}
+		sendDone <- nil
+	}()
+	waitForNoSessionsWithin(t, 5*time.Second)
+	select {
+	case err := <-sendDone:
+		if err == nil {
+			t.Fatal("client completed the command flood without being disconnected")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("client writer remained blocked after server released the session")
+	}
 }

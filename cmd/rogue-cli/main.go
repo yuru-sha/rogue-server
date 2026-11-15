@@ -33,47 +33,133 @@ func main() {
 	}
 }
 
+type websocketFrame struct {
+	messageType int
+	data        []byte
+	err         error
+}
+
+type inputResult struct {
+	command map[string]any
+	err     error
+}
+
 func run(conn *websocket.Conn, input *bufio.Reader, output io.Writer) error {
-	for {
-		messageType, data, err := conn.ReadMessage()
-		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
-				return nil
+	frames := make(chan websocketFrame, 1)
+	done := make(chan struct{})
+	defer conn.Close()
+	defer close(done)
+	go func() {
+		for {
+			messageType, data, err := conn.ReadMessage()
+			select {
+			case frames <- websocketFrame{messageType, data, err}:
+			case <-done:
+				return
 			}
-			return err
+			if err != nil {
+				return
+			}
 		}
-		if messageType != websocket.TextMessage {
-			continue
-		}
-		var response map[string]any
-		if err := json.Unmarshal(data, &response); err != nil {
-			return err
-		}
-		printSnapshot(output, response)
-		if response["ended"] == true {
-			return nil
-		}
-		command, err := readCommand(input, output)
+	}()
+
+	for {
+		response, err := decodeSnapshot(<-frames)
 		if err != nil {
 			if err == io.EOF {
 				return nil
 			}
 			return err
 		}
-		request := map[string]any{"version": 1, "request_id": "cli", "command": command}
-		if err := conn.WriteJSON(request); err != nil {
-			return err
+		if response == nil {
+			continue
+		}
+		printSnapshot(output, response)
+		if response["ended"] == true {
+			return nil
+		}
+
+		inputResults := make(chan inputResult, 1)
+		startInputRead := func() {
+			go func() {
+				command, err := readInput(input)
+				select {
+				case inputResults <- inputResult{command, err}:
+				case <-done:
+				}
+			}()
+		}
+		startInputRead()
+	inputLoop:
+		for {
+			select {
+			case result := <-inputResults:
+				if result.err != nil {
+					if result.err == io.EOF {
+						return nil
+					}
+					return result.err
+				}
+				if result.command == nil {
+					fmt.Fprintln(output, "Unknown command; try again.")
+					startInputRead()
+					continue
+				}
+				if err := conn.WriteJSON(map[string]any{"version": 1, "request_id": "cli", "command": result.command}); err != nil {
+					return err
+				}
+				break inputLoop
+			case frame := <-frames:
+				response, err := decodeSnapshot(frame)
+				if err != nil {
+					if err == io.EOF {
+						return nil
+					}
+					return err
+				}
+				if response == nil {
+					continue
+				}
+				printSnapshot(output, response)
+				if response["ended"] == true {
+					return nil
+				}
+			}
 		}
 	}
 }
 
+func decodeSnapshot(frame websocketFrame) (map[string]any, error) {
+	if frame.err != nil {
+		if websocket.IsCloseError(frame.err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+			return nil, io.EOF
+		}
+		return nil, frame.err
+	}
+	if frame.messageType != websocket.TextMessage {
+		return nil, nil
+	}
+	var response map[string]any
+	if err := json.Unmarshal(frame.data, &response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func readInput(input *bufio.Reader) (map[string]any, error) {
+	var line string
+	if _, err := fmt.Fscanln(input, &line); err != nil {
+		return nil, err
+	}
+	return commandForKey([]rune(line)), nil
+}
+
 func readCommand(input *bufio.Reader, output io.Writer) (map[string]any, error) {
 	for {
-		var line string
-		if _, err := fmt.Fscanln(input, &line); err != nil {
+		command, err := readInput(input)
+		if err != nil {
 			return nil, err
 		}
-		command := commandForKey([]rune(line))
 		if command != nil {
 			return command, nil
 		}

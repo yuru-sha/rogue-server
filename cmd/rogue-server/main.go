@@ -25,6 +25,15 @@ var activeSessions = struct {
 }{connections: make(map[*websocket.Conn]struct{})}
 var idleTimeout = defaultIdleTimeout
 
+const defaultWriteTimeout = 10 * time.Second
+
+func writeMessage(conn *websocket.Conn, messageType int, message []byte, timeout time.Duration) error {
+	if err := conn.SetWriteDeadline(time.Now().Add(timeout)); err != nil {
+		return err
+	}
+	return conn.WriteMessage(messageType, message)
+}
+
 var upgrader = websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
 
 func main() {
@@ -93,6 +102,10 @@ func configureSessionLimits() {
 }
 
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
+	websocketHandlerWithWriteTimeout(w, r, defaultWriteTimeout)
+}
+
+func websocketHandlerWithWriteTimeout(w http.ResponseWriter, r *http.Request, writeTimeout time.Duration) {
 	var seed *uint64
 	if raw := r.URL.Query().Get("seed"); raw != "" {
 		parsed, err := strconv.ParseUint(raw, 10, 64)
@@ -148,7 +161,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 	slog.Info("websocket_connected", "operation", "websocket_connect", "outcome", "connected")
 	g := game.New(seed)
-	if err := conn.WriteMessage(websocket.TextMessage, g.InitialJSON()); err != nil {
+	if err := writeMessage(conn, websocket.TextMessage, g.InitialJSON(), writeTimeout); err != nil {
 		outcome = "transport_error"
 		slog.Warn("websocket_initial_snapshot_failed", "operation", "websocket_write", "outcome", "failed", "error", err)
 		return
@@ -170,7 +183,7 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		response := g.HandleJSON(message)
-		if err := conn.WriteMessage(websocket.TextMessage, response); err != nil {
+		if err := writeMessage(conn, websocket.TextMessage, response, writeTimeout); err != nil {
 			outcome = "transport_error"
 			slog.Warn("websocket_write_failed", "operation", "websocket_write", "outcome", "failed", "error", err)
 			return
