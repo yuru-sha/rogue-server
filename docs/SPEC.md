@@ -8,7 +8,7 @@ server owns all game rules and random outcomes.
 
 ## Transport
 
-- Rust single binary.
+- Go server and reference CLI.
 - WebSocket endpoint: `GET /ws`.
 - Optional deterministic seed: `/ws?seed=<u64>`.
 - Health endpoint: `GET /health`.
@@ -27,8 +27,9 @@ server owns all game rules and random outcomes.
 - Search reveals untriggered traps within two tiles of the player without
   consuming a turn.
 - Inventory inspection reports carried item counts without consuming a turn.
-- The drop command returns one named carried item (food, potion, scroll,
-  amulet, weapon, or armor) to the current tile and consumes one turn.
+- The drop command returns one named carried item (food, potion, strength
+  potion, scroll, teleport scroll, amulet, weapon, armor, ring, or staff) to
+  the current tile and consumes one turn.
 - Cursed weapons, armor, rings, and staffs are unidentified until inspected;
   identifying an item reports whether it is cursed without consuming a turn.
 - A cursed armor item has a negative defense modifier and cannot be removed
@@ -59,7 +60,7 @@ server owns all game rules and random outcomes.
 ## Player and combat
 
 - Initial player state: 20 HP, level 1, zero XP, hunger 100.
-- Defeated enemies award 10 XP.
+- Defeated Bats, Goblins, and Trolls award 8, 10, and 20 XP respectively.
 - Each level requires `level * 20` XP, up to level 12.
 - A level-up increases maximum HP by 2 and restores HP.
 - Food reduces hunger by one per consumed turn and restores 25 hunger when

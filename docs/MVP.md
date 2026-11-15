@@ -63,11 +63,9 @@ Every implementation cycle is reviewed against:
 
 1. `SPEC.md`: required behavior, protocol, state transitions, and scope.
 2. This file: accepted and deferred MVP criteria.
-3. Public seams: `Game::handle`, JSON serialization, `/health`, `/ws`, and
-   the CLI smoke path.
-4. Automated evidence: focused TDD tests, `cargo fmt -- --check`,
-   `cargo test --all-targets`, `cargo clippy --all-targets --all-features -- -D warnings`,
-   and `cargo check --locked --all-targets`.
+3. Public seams: `internal/game.Game.HandleJSON`, JSON serialization, `/health`, `/ws`, and the CLI smoke path.
+4. Automated evidence: `go fmt ./...`, `go test ./...`, `go vet ./...`, `go build ./...`, and `git diff --check`.
+
 
 A passing test suite does not by itself prove SPEC compliance. Missing
 acceptance items and behavior outside the scope are reported separately.

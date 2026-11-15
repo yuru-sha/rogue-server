@@ -1,4 +1,4 @@
-name: Rust verification
+name: Go verification
 
 on:
   pull_request:
@@ -14,27 +14,34 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
         with:
-          components: rustfmt, clippy
+          go-version: '1.27.4'
+          check-latest: true
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - name: Check formatting
-        run: cargo fmt --all -- --check
-      - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: test -z "$(go fmt ./...)"
+      - name: Vet
+        run: go vet ./...
       - name: Run tests
-        run: cargo test --all-targets
+        run: go test ./...
       - name: Build binaries
-        run: cargo build --bins
+        run: |
+          run_id="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          evidence_dir="artifacts/verify-rogue-server/${run_id}"
+          mkdir -p "$evidence_dir"
+          go build -o "$evidence_dir/rogue-server" ./cmd/rogue-server
+          go build -o "$evidence_dir/rogue-cli" ./cmd/rogue-cli
       - name: Verify HTTP and WebSocket against running server
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p artifacts/verify-rogue-server/ci
+          run_id="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          evidence_dir="artifacts/verify-rogue-server/${run_id}"
           export ROGUE_LISTEN=127.0.0.1:18083
-          target/debug/rogue-server > artifacts/verify-rogue-server/ci/server.log 2>&1 &
+          "$evidence_dir/rogue-server" > "$evidence_dir/server.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
           healthy=0
@@ -49,18 +56,18 @@ jobs:
             sleep 0.2
           done
           if [[ "$healthy" != 1 ]]; then
-            cat artifacts/verify-rogue-server/ci/server.log
+            cat "$evidence_dir/server.log"
             exit 1
           fi
           node --check .agents/skills/verify-rogue-server/scripts/drive-session.mjs
           node .agents/skills/verify-rogue-server/scripts/drive-session.mjs \
             ws://127.0.0.1:18083/ws?seed=42 \
-            artifacts/verify-rogue-server/ci/session.json
-          target/debug/rogue-cli --help > artifacts/verify-rogue-server/ci/cli-help.txt
+            "$evidence_dir/session.json"
+          "$evidence_dir/rogue-cli" --help > "$evidence_dir/cli-help.txt"
       - name: Upload smoke evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rogue-server-verification
-          path: artifacts/verify-rogue-server/ci/
+          path: artifacts/verify-rogue-server/ci-${{ github.run_id }}-${{ github.run_attempt }}/
           if-no-files-found: warn

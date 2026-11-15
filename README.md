@@ -10,30 +10,34 @@ A minimal Rogue-like, turn-based dungeon server. The server owns the game state,
 
 ## Running
 
+Requirements: Go 1.27.4.
+
 ```sh
-cargo run
+go run ./cmd/rogue-server
 curl http://127.0.0.1:8080/health
 ```
 
 In another terminal, start the ASCII client:
 
 ```sh
-cargo run --bin rogue-cli
+go run ./cmd/rogue-cli
 ```
 
 See the available controls with:
 
 ```sh
-cargo run --bin rogue-cli -- --help
+go run ./cmd/rogue-cli --help
 ```
 
 Set `ROGUE_WS` to change the connection target:
 
 ```sh
-ROGUE_WS=ws://127.0.0.1:9000/ws cargo run --bin rogue-cli
+ROGUE_WS=ws://127.0.0.1:9000/ws go run ./cmd/rogue-cli
 ```
 
 Set `ROGUE_LISTEN` to change the listen address.
+
+The server writes structured JSON logs to stderr.
 
 ## Command examples
 
@@ -60,7 +64,6 @@ Items of the same type and metadata stack in one slot. Using or dropping an item
 ```text
 ws://127.0.0.1:8080/ws?seed=42
 ```
-
 
 ## Documentation
 
