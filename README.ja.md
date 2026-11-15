@@ -10,30 +10,31 @@ The MVP currently includes three enemy types in addition to the core combat loop
 
 ## 起動
 
+Go 1.27.4 が必要です。
+
 ```sh
-cargo run
+go run ./cmd/rogue-server
 curl http://127.0.0.1:8080/health
 ```
-
 別のターミナルでASCIIクライアントを起動します。
 
 ```sh
-cargo run --bin rogue-cli
+go run ./cmd/rogue-cli
 ```
 
 操作一覧は次で確認できます。
 
 ```sh
-cargo run --bin rogue-cli -- --help
+go run ./cmd/rogue-cli --help
 ```
-
 接続先を変更する場合は `ROGUE_WS` を指定します。
 
 ```sh
-ROGUE_WS=ws://127.0.0.1:9000/ws cargo run --bin rogue-cli
+ROGUE_WS=ws://127.0.0.1:9000/ws go run ./cmd/rogue-cli
 ```
-
 listen先は`ROGUE_LISTEN`で変更できます。
+
+サーバーの構造化ログはJSON形式で標準エラー出力に出力します。
 
 ## コマンド例
 
@@ -60,7 +61,6 @@ listen先は`ROGUE_LISTEN`で変更できます。
 ```text
 ws://127.0.0.1:8080/ws?seed=42
 ```
-
 
 ## ドキュメント
 
