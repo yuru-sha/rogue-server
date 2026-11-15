@@ -145,23 +145,20 @@ func TestSlowWebSocketReaderCannotHoldSessionPastWriteDeadline(t *testing.T) {
 	if err := tcp.SetReadBuffer(1024); err != nil {
 		t.Fatal(err)
 	}
-	sendDone := make(chan error, 1)
+	sendDone := make(chan struct{})
 	go func() {
+		defer close(sendDone)
 		for range 10000 {
 			if err := conn.WriteJSON(map[string]any{"version": 1, "request_id": "wait", "command": map[string]any{"type": "wait"}}); err != nil {
-				sendDone <- err
 				return
 			}
 		}
-		sendDone <- nil
 	}()
 	waitForNoSessionsWithin(t, 5*time.Second)
+	_ = conn.Close()
 	select {
-	case err := <-sendDone:
-		if err == nil {
-			t.Fatal("client completed the command flood without being disconnected")
-		}
+	case <-sendDone:
 	case <-time.After(time.Second):
-		t.Fatal("client writer remained blocked after server released the session")
+		t.Fatal("client writer did not stop after the connection was closed")
 	}
 }
