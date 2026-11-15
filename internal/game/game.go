@@ -28,6 +28,7 @@ type item struct {
 	Kind       string
 	Bonus      int
 	Identified bool
+	Cursed     bool
 }
 type enemy struct {
 	Pos                 Pos
@@ -65,11 +66,11 @@ type Game struct {
 	HP, MaxHP, Hunger                                                                  int
 	Food, Weapons, Potions, StrengthPotions, Amulets, Scrolls, TeleportScrolls, Arrows uint32
 	WeaponBonus, ArmorBonus, RingBonus, StaffBonus                                     int
+	equippedWeapon, equippedArmor, equippedRing, equippedStaff                         *stack
 	StrengthTurns                                                                      uint32
 	Armor, Rings, Staffs                                                               uint32
 	PoisonTurns                                                                        uint32
 	Level, XP, Defeated                                                                uint32
-	weaponCursed, armorCursed, ringCursed, staffCursed                                 bool
 	inventory                                                                          []stack
 }
 type floorState struct {
@@ -184,7 +185,7 @@ func New(seed *uint64) *Game {
 		b     int
 		known bool
 	}{{3, 2, "food", 0, true}, {4, 2, "weapon", 1, true}, {5, 2, "armor", 1, true}, {7, 2, "potion", 0, true}, {11, 2, "strength_potion", 0, true}, {8, 2, "scroll", 0, true}, {12, 2, "teleport_scroll", 0, true}, {13, 2, "ring", 1, true}, {14, 2, "staff", 3, true}, {15, 2, "ring", -1, false}, {16, 2, "staff", -2, false}, {9, 2, "weapon", -1, false}, {10, 2, "armor", -1, false}} {
-		g.items = append(g.items, item{Pos{v.x, v.y}, v.k, v.b, v.known})
+		g.items = append(g.items, item{Pos{v.x, v.y}, v.k, v.b, v.known, v.b < 0})
 	}
 	g.traps = []trap{{Pos{6, 2}, "poison", false, false}, {Pos{5, 3}, "fire", false, false}}
 	g.reveal()
@@ -416,11 +417,11 @@ func (g *Game) HandleJSON(b []byte) []byte {
 		}
 	case "drop":
 		name := itemName
-		kind, bonus, identified, ok := g.take(name)
+		dropped, ok := g.take(name)
 		if !ok {
 			return fail("You do not have that item.")
 		}
-		g.items = append(g.items, item{g.player, kind, bonus, identified})
+		g.items = append(g.items, item{g.player, dropped.Kind, dropped.Bonus, dropped.Identified, dropped.Cursed})
 		msg = "You drop an item."
 		consumed = true
 	case "equip", "equip_armor", "equip_ring", "equip_staff":
@@ -434,6 +435,10 @@ func (g *Game) HandleJSON(b []byte) []byte {
 		if typ == "equip_staff" {
 			name = "staff"
 		}
+		slot := g.equippedSlot(name)
+		if *slot != nil {
+			return fail("You already have a " + name + " equipped.")
+		}
 		i := -1
 		for j, s := range g.inventory {
 			if s.Kind == name {
@@ -445,92 +450,76 @@ func (g *Game) HandleJSON(b []byte) []byte {
 			return fail("You have no " + name + " to equip.")
 		}
 		s := g.inventory[i]
-		if s.Qty > 1 {
+		s.Qty = 1
+		*slot = &s
+		if g.inventory[i].Qty > 1 {
 			g.inventory[i].Qty--
 		} else {
 			g.inventory = append(g.inventory[:i], g.inventory[i+1:]...)
 		}
 		g.decrementCount(name)
-		if name == "weapon" {
-			g.WeaponBonus += s.Bonus
-			g.weaponCursed = s.Cursed
-		}
-		if name == "armor" {
-			g.ArmorBonus += s.Bonus
-			g.armorCursed = s.Cursed
-		}
-		if name == "ring" {
-			g.RingBonus += s.Bonus
-			g.ringCursed = s.Cursed
-		}
-		if name == "staff" {
-			g.StaffBonus += s.Bonus
-			g.staffCursed = s.Cursed
-		}
+		g.setEquipmentBonus(name, s.Bonus)
 		msg = "You equip the " + name + "."
 		consumed = true
 	case "unequip", "unequip_armor", "unequip_ring", "unequip_staff":
 		name := "weapon"
-		bonus := g.WeaponBonus
-		cursed := g.weaponCursed
 		if typ == "unequip_armor" {
 			name = "armor"
-			bonus = g.ArmorBonus
-			cursed = g.armorCursed
 		}
 		if typ == "unequip_ring" {
 			name = "ring"
-			bonus = g.RingBonus
-			cursed = g.ringCursed
 		}
 		if typ == "unequip_staff" {
 			name = "staff"
-			bonus = g.StaffBonus
-			cursed = g.staffCursed
 		}
-		if bonus == 0 {
+		slot := g.equippedSlot(name)
+		if *slot == nil {
 			return fail("You have no equipped " + name + ".")
 		}
-		if cursed {
+		if (*slot).Cursed {
 			return fail("The cursed " + name + " cannot be removed.")
 		}
-		switch name {
-		case "weapon":
-			g.WeaponBonus--
-			g.Weapons++
-		case "armor":
-			g.ArmorBonus--
-			g.Armor++
-		case "ring":
-			g.RingBonus--
-			g.Rings++
-		case "staff":
-			g.StaffBonus -= 3
-			g.Staffs++
+		equipped := **slot
+		canMerge := false
+		for _, carried := range g.inventory {
+			if carried.Kind == equipped.Kind && carried.Bonus == equipped.Bonus && carried.Identified == equipped.Identified && carried.Cursed == equipped.Cursed {
+				canMerge = true
+				break
+			}
 		}
-		g.addStack(item{Kind: name, Bonus: map[string]int{"weapon": 1, "armor": 1, "ring": 1, "staff": 3}[name], Identified: true})
+		if g.slots() >= 20 && !canMerge {
+			return marshal(errorResponse("inventory_full", "Your inventory is full.", rid))
+		}
+		g.addInventoryStack(equipped)
+		g.count(name, 1)
+		g.setEquipmentBonus(name, 0)
+		*slot = nil
 		msg = "You remove the " + name + "."
 		consumed = true
 	default:
 		return fail("unsupported command")
 	}
 	if consumed && !g.Ended {
+		g.Turn++
 		g.poison(&msg)
 		if !g.Ended {
 			g.trigger(&msg)
 		}
-		transition := g.transition(&msg)
-		g.Turn++
-		g.hunger(&msg)
 		if !g.Ended {
+			g.hunger(&msg)
+		}
+		if !g.Ended {
+			transition := g.transition(&msg)
 			g.enemyTurn(&msg)
-		}
-		if g.StrengthTurns > 0 {
-			g.StrengthTurns--
-		}
-		if transition && g.FloorNo == 1 && g.Amulets > 0 {
-			g.end("victory")
-			msg = "You return to the surface with the amulet."
+			if !g.Ended {
+				if g.StrengthTurns > 0 {
+					g.StrengthTurns--
+				}
+				if transition && g.FloorNo == 1 && g.Amulets > 0 {
+					g.end("victory")
+					msg = "You return to the surface with the amulet."
+				}
+			}
 		}
 	}
 	g.reveal()
@@ -674,20 +663,42 @@ func (g *Game) decrementCount(k string) {
 		g.TeleportScrolls--
 	}
 }
-func (g *Game) addStack(v item) {
-	c := false
-	switch v.Kind {
-	case "weapon", "armor", "ring", "staff":
-		c = v.Bonus < 0
+func (g *Game) equippedSlot(kind string) **stack {
+	switch kind {
+	case "weapon":
+		return &g.equippedWeapon
+	case "armor":
+		return &g.equippedArmor
+	case "ring":
+		return &g.equippedRing
+	default:
+		return &g.equippedStaff
 	}
+}
+func (g *Game) setEquipmentBonus(kind string, bonus int) {
+	switch kind {
+	case "weapon":
+		g.WeaponBonus = bonus
+	case "armor":
+		g.ArmorBonus = bonus
+	case "ring":
+		g.RingBonus = bonus
+	case "staff":
+		g.StaffBonus = bonus
+	}
+}
+func (g *Game) addStack(v item) {
+	g.addInventoryStack(stack{Kind: v.Kind, Bonus: v.Bonus, Identified: v.Identified, Cursed: v.Cursed, Qty: 1})
+}
+func (g *Game) addInventoryStack(v stack) {
 	for i := range g.inventory {
 		s := &g.inventory[i]
-		if s.Kind == v.Kind && s.Bonus == v.Bonus && s.Identified == v.Identified && s.Cursed == c {
-			s.Qty++
+		if s.Kind == v.Kind && s.Bonus == v.Bonus && s.Identified == v.Identified && s.Cursed == v.Cursed {
+			s.Qty += v.Qty
 			return
 		}
 	}
-	g.inventory = append(g.inventory, stack{v.Kind, v.Bonus, v.Identified, c, 1})
+	g.inventory = append(g.inventory, v)
 }
 func (g *Game) slots() int {
 	if len(g.inventory) > 0 {
@@ -928,7 +939,7 @@ func (g *Game) transition(msg *string) bool {
 		if n == nil {
 			n = g.capture()
 			n.tiles[idx(n.upStair)] = up
-			n.items = append(n.items, item{n.stair, "amulet", 0, true})
+			n.items = append(n.items, item{n.stair, "amulet", 0, true, false})
 		}
 		g.restore(n)
 		g.FloorNo = 2
@@ -966,19 +977,20 @@ func (g *Game) randomFloor() (Pos, bool) {
 	}
 	return Pos{}, false
 }
-func (g *Game) take(name string) (string, int, bool, bool) {
+func (g *Game) take(name string) (stack, bool) {
 	for i, s := range g.inventory {
 		if s.Kind != name {
 			continue
 		}
 		out := s
-		if out.Qty > 1 {
+		out.Qty = 1
+		if s.Qty > 1 {
 			g.inventory[i].Qty--
 		} else {
 			g.inventory = append(g.inventory[:i], g.inventory[i+1:]...)
 		}
 		g.decrementCount(name)
-		return out.Kind, out.Bonus, out.Identified, true
+		return out, true
 	}
-	return "", 0, false, false
+	return stack{}, false
 }
