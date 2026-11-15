@@ -46,6 +46,11 @@ Server WebSocket writes have a 10-second deadline; clients that stop reading are
 disconnected and release their session slot.
 
 The server writes structured JSON logs to stderr.
+When `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` is set,
+the server exports HTTP request traces (including WebSocket session lifetimes)
+over OTLP/HTTP. For example, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+to send traces to a local OpenTelemetry Collector. Without either endpoint, tracing
+export is disabled. The service resource is named `rogue-server`.
 
 ## Command examples
 

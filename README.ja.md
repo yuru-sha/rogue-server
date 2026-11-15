@@ -42,6 +42,11 @@ WebSocketセッションも閉じます。
 切断され、セッション枠が解放されます。
 
 サーバーの構造化ログはJSON形式で標準エラー出力に出力します。
+`OTEL_EXPORTER_OTLP_ENDPOINT`または`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`を設定すると、
+HTTPリクエスト（WebSocketセッションの継続時間を含む）のトレースをOTLP/HTTPで送信します。
+例: `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` でローカルの
+OpenTelemetry Collectorへ送信できます。どちらのendpointも未設定なら送信は無効です。
+サービスリソース名は`rogue-server`です。
 
 ## コマンド例
 
