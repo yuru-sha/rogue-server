@@ -13,16 +13,25 @@ server owns all game rules and random outcomes.
 - Optional deterministic seed: `/ws?seed=<u64>`.
 - Health endpoint: `GET /health`.
 - Default listen address: `127.0.0.1:8080`, overridden by `ROGUE_LISTEN`.
+- One connection owns one game. Disconnecting ends that game.
 - Messages are JSON with `version`, `request_id`, and a command or response
   `type`.
 - Invalid JSON, unsupported commands, and invalid moves return an error and do
   not consume a turn.
-- One connection owns one game. Disconnecting ends that game.
+- WebSocket sessions are limited to 64 concurrent connections by default;
+  `ROGUE_MAX_SESSIONS` configures the positive limit.
+- A connection idle for five minutes is closed by default;
+  `ROGUE_IDLE_TIMEOUT` configures this Go duration.
+- SIGINT and SIGTERM close active WebSocket sessions and gracefully stop HTTP.
+- WebSocket ping/pong control frames do not end a session; binary application
+  frames are ignored.
 
 ## Turn rules
 
 - A successful player action consumes one turn.
 - Enemy actions run after the player action.
+- Turn-consuming actions increment the turn before poison, trap, and hunger
+  damage; lethal damage stops processing before stairs or enemy actions.
 - Invalid actions and inspection-only operations do not consume a turn.
 - Search reveals untriggered traps within two tiles of the player without
   consuming a turn.
@@ -34,8 +43,12 @@ server owns all game rules and random outcomes.
   identifying an item reports whether it is cursed without consuming a turn.
 - A cursed armor item has a negative defense modifier and cannot be removed
   after equipping.
-- Equipped non-cursed weapons and armor can be removed; cursed equipment
-  cannot be removed.
+- All equipped non-cursed weapons, armor, rings, and staffs can be removed;
+  cursed equipment cannot be removed.
+- Each equipment slot holds at most one item. Equipping an occupied slot is
+  rejected; unequipping restores the exact bonus, identification, and curse
+  metadata. An unequip that would exceed the 20-slot inventory limit is
+  rejected unless the item can merge into an existing stack.
 - Movement supports eight directions. Diagonal corner cutting is forbidden.
 - Moving into an enemy performs a melee attack.
 - Waiting heals one HP up to maximum HP.
@@ -108,4 +121,6 @@ server owns all game rules and random outcomes.
 - `rogue-cli` is the reference ASCII client.
 - It supports Rogue-style movement keys, wait, pickup, eat, drink, equip,
   read-scroll, inventory, shoot, search, and quit.
+- Unmapped input prompts again without waiting for a server response; EOF exits
+  cleanly, and WebSocket control frames do not terminate the client.
 - Other clients may use the same JSON/WebSocket contract.

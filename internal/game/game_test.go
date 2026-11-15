@@ -72,20 +72,129 @@ func TestSnapshotPlacesItemsOnlyOnTheirMapRow(t *testing.T) {
 	}
 }
 
-func TestEquippedStacksCanBeRemovedOneAtATime(t *testing.T) {
+func TestEquipmentSlotRejectsStackingAndRestoresExactItem(t *testing.T) {
 	g := New(nil)
 	g.enemies = nil
 	g.player = Pos{4, 2}
-	g.items = []item{{Pos: g.player, Kind: "weapon", Bonus: 1, Identified: true}, {Pos: g.player, Kind: "weapon", Bonus: 1, Identified: true}}
-	for range 2 {
-		g.HandleJSON([]byte(`{"version":1,"request_id":"pickup","command":{"type":"pickup"}}`))
+	g.items = []item{{Pos: g.player, Kind: "weapon", Bonus: 2, Identified: true}, {Pos: g.player, Kind: "weapon", Bonus: -1, Identified: false, Cursed: true}}
+	handle(t, g, `{"type":"pickup"}`)
+	handle(t, g, `{"type":"pickup"}`)
+	handle(t, g, `{"type":"equip"}`)
+	before := g.Turn
+	rejected := handle(t, g, `{"type":"equip"}`)
+	if rejected.Type != "error" || g.Turn != before || g.WeaponBonus != 2 || g.Weapons != 1 {
+		t.Fatalf("occupied slot accepted another item: %+v bonus=%d count=%d", rejected, g.WeaponBonus, g.Weapons)
 	}
-	for range 2 {
-		g.HandleJSON([]byte(`{"version":1,"request_id":"equip","command":{"type":"equip"}}`))
+	handle(t, g, `{"type":"unequip"}`)
+	if g.WeaponBonus != 0 || g.Weapons != 2 || g.inventory[0].Bonus != -1 || !g.inventory[0].Cursed {
+		t.Fatalf("unequip did not restore metadata and counts: bonus=%d count=%d inventory=%+v", g.WeaponBonus, g.Weapons, g.inventory)
 	}
-	g.HandleJSON([]byte(`{"version":1,"request_id":"unequip","command":{"type":"unequip"}}`))
-	if g.WeaponBonus != 1 || g.Weapons != 1 {
-		t.Fatalf("removing one weapon should retain one equipped bonus: bonus=%d inventory=%d", g.WeaponBonus, g.Weapons)
+	handle(t, g, `{"type":"equip"}`)
+	if g.WeaponBonus != -1 {
+		t.Fatalf("re-equipping negative-bonus item lost its exact modifier: %d", g.WeaponBonus)
+	}
+	if got := handle(t, g, `{"type":"unequip"}`); got.Type != "error" || g.WeaponBonus != -1 {
+		t.Fatalf("cursed re-equipped item was removable: %+v bonus=%d", got, g.WeaponBonus)
+	}
+}
+
+func TestLethalStatusDamageEndsActionBeforeStairs(t *testing.T) {
+	cases := []struct {
+		name          string
+		setup         func(*Game)
+		expectedScore int
+	}{
+		{name: "poison", setup: func(g *Game) { g.HP, g.PoisonTurns = 1, 1 }, expectedScore: 199},
+		{name: "fire trap", setup: func(g *Game) { g.HP = 4; g.traps = []trap{{Pos: g.player, Kind: "fire"}} }, expectedScore: 199},
+		{name: "starvation", setup: func(g *Game) { g.HP, g.Hunger = 1, 0 }, expectedScore: 99},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g := New(nil)
+			g.enemies = nil
+			g.player = Pos{4, 2}
+			g.stair = g.player
+			g.inventory = []stack{{Kind: "food", Qty: 1}}
+			g.Food = 1
+			tc.setup(g)
+			response := handle(t, g, `{"type":"drop","item":"food"}`)
+			if !response.Ended || response.Result == nil || *response.Result != "death" || response.Turn != 1 || response.Floor != 1 || response.Score == nil || *response.Score != tc.expectedScore {
+				t.Fatalf("lethal damage did not terminate before transition with updated turn/score: %+v", response)
+			}
+		})
+	}
+}
+
+func TestDropAndRepickupPreservesEquipmentMetadata(t *testing.T) {
+	g := New(nil)
+	g.enemies = nil
+	g.player = Pos{9, 2}
+	handle(t, g, `{"type":"pickup"}`)
+	handle(t, g, `{"type":"identify","item":"weapon"}`)
+	handle(t, g, `{"type":"drop","item":"weapon"}`)
+	found := false
+	for _, v := range g.items {
+		if v.Pos == g.player && v.Kind == "weapon" {
+			found = v.Bonus == -1 && v.Identified && v.Cursed
+		}
+	}
+	if !found {
+		t.Fatalf("drop lost item metadata: %+v", g.items)
+	}
+	handle(t, g, `{"type":"pickup"}`)
+	if len(g.inventory) != 1 || g.inventory[0].Bonus != -1 || !g.inventory[0].Identified || !g.inventory[0].Cursed {
+		t.Fatalf("re-pickup lost item metadata: %+v", g.inventory)
+	}
+}
+
+func TestEveryEquipmentSlotRestoresExactStack(t *testing.T) {
+	cases := []struct {
+		kind, equip, unequip string
+		bonus                int
+		cursed               bool
+	}{
+		{"weapon", "equip", "unequip", 0, false},
+		{"armor", "equip_armor", "unequip_armor", 2, false},
+		{"ring", "equip_ring", "unequip_ring", -2, true},
+		{"staff", "equip_staff", "unequip_staff", 5, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.kind, func(t *testing.T) {
+			g := New(nil)
+			g.enemies = nil
+			g.inventory = []stack{{Kind: tc.kind, Bonus: tc.bonus, Identified: true, Cursed: tc.cursed, Qty: 1}}
+			g.count(tc.kind, 1)
+			handle(t, g, `{"type":"`+tc.equip+`"}`)
+			if *g.equippedSlot(tc.kind) == nil || (*g.equippedSlot(tc.kind)).Bonus != tc.bonus {
+				t.Fatalf("equipped slot lost item record: %+v", *g.equippedSlot(tc.kind))
+			}
+			response := handle(t, g, `{"type":"`+tc.unequip+`"}`)
+			if tc.cursed {
+				if response.Type != "error" || *g.equippedSlot(tc.kind) == nil {
+					t.Fatalf("cursed item was removable: %+v", response)
+				}
+				return
+			}
+			if response.Type != "snapshot" || *g.equippedSlot(tc.kind) != nil || len(g.inventory) != 1 || g.inventory[0].Bonus != tc.bonus || g.inventory[0].Identified != true || g.inventory[0].Cursed != tc.cursed {
+				t.Fatalf("unequip did not restore exact record: response=%+v inventory=%+v", response, g.inventory)
+			}
+		})
+	}
+}
+
+func TestUnequipAtInventoryCapacityKeepsEquippedItem(t *testing.T) {
+	g := New(nil)
+	g.enemies = nil
+	for bonus := 2; bonus < 22; bonus++ {
+		g.inventory = append(g.inventory, stack{Kind: "weapon", Bonus: bonus, Identified: true, Qty: 1})
+	}
+	equipped := stack{Kind: "weapon", Bonus: 1, Identified: true, Qty: 1}
+	g.equippedWeapon = &equipped
+	g.WeaponBonus = equipped.Bonus
+	g.Weapons = uint32(len(g.inventory))
+	response := handle(t, g, `{"type":"unequip"}`)
+	if response.Type != "error" || response.Error == nil || response.Error.Code != "inventory_full" || g.equippedWeapon == nil || g.WeaponBonus != 1 || g.Weapons != 20 || g.Turn != 0 {
+		t.Fatalf("full inventory lost or mutated equipment: response=%+v equipped=%+v count=%d turn=%d", response, g.equippedWeapon, g.Weapons, g.Turn)
 	}
 }
 

@@ -35,7 +35,13 @@ Set `ROGUE_WS` to change the connection target:
 ROGUE_WS=ws://127.0.0.1:9000/ws go run ./cmd/rogue-cli
 ```
 
-Set `ROGUE_LISTEN` to change the listen address.
+`ROGUE_LISTEN` changes the listen address; the default is loopback. Binding to a
+non-loopback address exposes the game server to the network, so deploy it only
+behind appropriate network access controls. WebSocket sessions are limited to
+64 concurrent connections by default and disconnect after five minutes without
+client activity. Set `ROGUE_MAX_SESSIONS` to a positive connection limit and
+`ROGUE_IDLE_TIMEOUT` to a Go duration (for example, `2m`) to change these limits.
+The server closes active WebSocket sessions during SIGINT/SIGTERM shutdown.
 
 The server writes structured JSON logs to stderr.
 

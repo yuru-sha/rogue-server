@@ -32,7 +32,12 @@ go run ./cmd/rogue-cli --help
 ```sh
 ROGUE_WS=ws://127.0.0.1:9000/ws go run ./cmd/rogue-cli
 ```
-listen先は`ROGUE_LISTEN`で変更できます。
+listen先は`ROGUE_LISTEN`で変更できます。デフォルトはloopbackです。非loopbackに
+bindするとネットワークに公開されるため、適切なアクセス制御の内側でのみ運用してください。
+WebSocketセッション数の上限はデフォルト64、無通信タイムアウトは5分です。
+`ROGUE_MAX_SESSIONS`には正の接続数、`ROGUE_IDLE_TIMEOUT`にはGoのduration形式
+（例: `2m`）を指定して変更できます。SIGINT/SIGTERMによる終了時には接続中の
+WebSocketセッションも閉じます。
 
 サーバーの構造化ログはJSON形式で標準エラー出力に出力します。
 

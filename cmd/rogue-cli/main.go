@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/gorilla/websocket"
@@ -26,50 +28,75 @@ func main() {
 		fatal(err)
 	}
 	defer conn.Close()
+	if err := run(conn, bufio.NewReader(os.Stdin), os.Stdout); err != nil {
+		fatal(err)
+	}
+}
+
+func run(conn *websocket.Conn, input *bufio.Reader, output io.Writer) error {
 	for {
-		_, data, err := conn.ReadMessage()
+		messageType, data, err := conn.ReadMessage()
 		if err != nil {
-			fatal(err)
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				return nil
+			}
+			return err
+		}
+		if messageType != websocket.TextMessage {
+			continue
 		}
 		var response map[string]any
 		if err := json.Unmarshal(data, &response); err != nil {
-			fatal(err)
+			return err
 		}
-		printSnapshot(response)
+		printSnapshot(output, response)
 		if response["ended"] == true {
-			return
+			return nil
 		}
-		var line string
-		if _, err := fmt.Fscanln(os.Stdin, &line); err != nil {
-			return
-		}
-		command := commandForKey([]rune(line))
-		if command == nil {
-			continue
+		command, err := readCommand(input, output)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
 		}
 		request := map[string]any{"version": 1, "request_id": "cli", "command": command}
 		if err := conn.WriteJSON(request); err != nil {
-			fatal(err)
+			return err
 		}
 	}
 }
 
-func printSnapshot(response map[string]any) {
-	fmt.Print("\x1b[2J\x1b[H")
+func readCommand(input *bufio.Reader, output io.Writer) (map[string]any, error) {
+	for {
+		var line string
+		if _, err := fmt.Fscanln(input, &line); err != nil {
+			return nil, err
+		}
+		command := commandForKey([]rune(line))
+		if command != nil {
+			return command, nil
+		}
+		fmt.Fprintln(output, "Unknown command; try again.")
+	}
+}
+
+func printSnapshot(output io.Writer, response map[string]any) {
+	fmt.Fprint(output, "\x1b[2J\x1b[H")
 	if rows, ok := response["map"].([]any); ok {
 		for _, row := range rows {
-			fmt.Println(row)
+			fmt.Fprintln(output, row)
 		}
 	}
-	fmt.Printf("Floor %v  HP %v/%v  hunger %v  poison %v  food %v  potions %v  strength potions %v  strength %v  scrolls %v  teleport scrolls %v  amulets %v  arrows %v  weapons %v  weapon+%v  armor %v  armor+%v  rings %v  ring+%v  staffs %v  staff+%v  level %v  XP %v  defeated %v  turn %v  score %v  seed %v\n",
+	fmt.Fprintf(output, "Floor %v  HP %v/%v  hunger %v  poison %v  food %v  potions %v  strength potions %v  strength %v  scrolls %v  teleport scrolls %v  amulets %v  arrows %v  weapons %v  weapon+%v  armor %v  armor+%v  rings %v  ring+%v  staffs %v  staff+%v  level %v  XP %v  defeated %v  turn %v  score %v  seed %v\n",
 		response["floor"], response["hp"], response["max_hp"], response["hunger"], response["poison_turns"],
 		response["food"], response["potions"], response["strength_potions"], response["strength_turns"],
 		response["scrolls"], response["teleport_scrolls"], response["amulets"], response["arrows"],
 		response["weapons"], response["weapon_bonus"], response["armor"], response["armor_bonus"],
 		response["rings"], response["ring_bonus"], response["staffs"], response["staff_bonus"],
 		response["level"], response["xp"], response["defeated"], response["turn"], displayScore(response["score"]), response["seed"])
-	fmt.Println(response["message"])
-	fmt.Println("[hjklyubn] move  [.] wait  [g] pickup  [e] eat  [p/P] drink  [r] map  [T] teleport  [i] inventory  [x/z/v/c] equip  [U/O/V/C] unequip  [1-0] drop  [f/F/R/B] shoot  [S] search  [q] quit")
+	fmt.Fprintln(output, response["message"])
+	fmt.Fprintln(output, "[hjklyubn] move  [.] wait  [g] pickup  [e] eat  [p/P] drink  [r] map  [T] teleport  [i] inventory  [x/z/v/c] equip  [U/O/V/C] unequip  [1-0] drop  [f/F/R/B] shoot  [S] search  [q] quit")
 }
 func printUsage() {
 	fmt.Println("Usage: rogue-cli\n\nConnects to ws://127.0.0.1:8080/ws and accepts keyboard commands.\nSet ROGUE_WS to override the WebSocket endpoint.")
